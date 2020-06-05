@@ -1,193 +1,325 @@
-import matplotlib.pyplot as plt
+from PyQt5.QtWidgets import*
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.uic import loadUi
+from matplotlib.backends.backend_qt5agg import (NavigationToolbar2QT as NavigationToolbar)
+import numpy as np
 import pandas as pd
-def sinif(kalite):
-    if kalite <= 50:
-        return "İYİ"
-    elif kalite <=100:
-        return "ORTA"
-    elif kalite <=150:
-        return "HASSAS"
-    elif kalite <=200:
-        return "SAĞLIKSIZ"
-    
-    elif kalite <=300:
-        return "KÖTÜ"
-    elif kalite <=500:
-        return "TEHLİKELİ"
-    else:
-        return "-"
+import random
+from sklearn.preprocessing import LabelEncoder
+import sys
+from datetime import date
+import os
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
 
-isgunu=[]
-tatilgunu=[]
+class Window(QtWidgets.QMainWindow):
+    resized = QtCore.pyqtSignal()
+    def  __init__(self, parent=None):
+        super(Window, self).__init__(parent=parent)
+        ui = Ui_MainWindow()
+        ui.setupUi(self)
+        self.resized.connect(self.islem)
+        loadUi("untitled.ui",self)
+        self.setWindowTitle("Veri Bilimi")
+        self.widget1.setVisible(False)
+        self.widget2.setVisible(False)
+        self.widget3.setVisible(False)
+        self.widget4.setVisible(False)
+        self.kaydet()
+        self.btnsonuc.clicked.connect(self.cizim)
+        self.btnkaydet.clicked.connect(self.kaydet)
+        self.btnmax.clicked.connect(lambda:self.maxmin("max"))
+        self.btnmin.clicked.connect(lambda:self.maxmin("min"))
+        self.btnolusturegit.clicked.connect(self.modelolustur)
+        self.tarihbaslangic.dateChanged.connect(self.baslangicTarih)
+        #self.addToolBar(NavigationToolbar(self.widget1.canvas, self)) 
 
+    def resizeEvent(self, event):
+        self.resized.emit()
+        return super(Window, self).resizeEvent(event)
 
-hava=pd.read_csv("hava.csv" )
-gunler=hava.groupby("Tarih")
-gunler=gunler.mean()
+    def islem(self):
+        self.yenidenboyutlandir()
 
-gunler=gunler.sort_values(["Tarih"], ascending = True)
-y=gunler[["PM10"]].iloc[::-1]
-x= range(0,len(gunler))
-plt.subplot(221),
-plt.plot(x,y,"r"),
-plt.ylabel("PM10"),
-plt.title("Günlere göre ortalama PM10 değerleri")
+    def sinif(self,kalite):
+        if kalite <= 100:
+            return 1 #"İYİ"
+        elif kalite >100:
+            return 2 #"ORTA"
+        """
+        elif kalite <=150:
+            return 3 #"HASSAS"
+        elif kalite <=200:
+            return 4 #"SAĞLIKSIZ"
+        
+        elif kalite <=300:
+            return 5 #"KÖTÜ"
+        elif kalite <=500:
+            return 6 #"TEHLİKELİ"
+        else:
+            return 0 #"-"
+        """
+     
+    def cizim1(self):
+        h=self.h.sort_values(["Tarih"], ascending = True)
+        y=h[["PM10"]].iloc[self.gunBaslangic:self.gunBaslangic+self.gunfarki+1]
+        x= range(0,len(y))
+        self.widget1.canvas.axes.plot(x,y,"r")   
+        self.widget1.canvas.axes.set_title('PM10 değerleri')
+        self.widget1.canvas.draw()
+        
+    def cizim2(self):
+        h=self.h.sort_values(["Tarih"], ascending = True)
+        y=h[["NO2"]].iloc[self.gunBaslangic:self.gunBaslangic+self.gunfarki+1]
+        x= range(0,len(y))
+        self.widget2.canvas.axes.plot(x,y,"b")   
+        self.widget2.canvas.axes.set_title('NO2 değerleri')
+        self.widget2.canvas.draw()
+        
+    def cizim3(self):
+        h=self.h.sort_values(["Tarih"], ascending = True)
+        y=h[["SO2"]].iloc[self.gunBaslangic:self.gunBaslangic+self.gunfarki+1]
+        x= range(0,len(y))
+        self.widget3.canvas.axes.plot(x,y,"y")   
+        self.widget3.canvas.axes.set_title('SO2 değerleri')
+        self.widget3.canvas.draw()
+        
+    def cizim4(self):
+        h=self.h.sort_values(["Tarih"], ascending = True)
+        y=h[["O3"]].iloc[self.gunBaslangic:self.gunBaslangic+self.gunfarki+1]
+        x= range(0,len(y))
+        self.widget4.canvas.axes.plot(x,y,"g")   
+        self.widget4.canvas.axes.set_title('O3 değerleri')
+        self.widget4.canvas.draw()
+        
+    def yenidenboyutlandir(self):
+        self.widget1.move(20,100)
+        self.widget2.move((self.frameGeometry().width()/2)+20,100)
+        self.widget3.move(20,(self.frameGeometry().height()/2)+40)
+        self.widget4.move((self.frameGeometry().width()/2)+20,(self.frameGeometry().height()/2)+40)
+        self.widget1.resize((self.frameGeometry().width()/2)-20,(self.frameGeometry().height()/2)-100)
+        self.widget2.resize((self.frameGeometry().width()/2)-20,(self.frameGeometry().height()/2)-100)
+        self.widget3.resize((self.frameGeometry().width()/2)-20,(self.frameGeometry().height()/2)-100)
+        self.widget4.resize((self.frameGeometry().width()/2)-20,(self.frameGeometry().height()/2)-100)
+        sayi=self.sayi
+        if self.pm10durum:
+            if sayi==1:
+                self.widget1.resize(self.frameGeometry().width()-20,self.frameGeometry().height()-100)
+            elif sayi==2:
+                self.widget1.resize((self.frameGeometry().width()/2)-20,self.frameGeometry().height()-100)
+        if self.no2durum:
+             if sayi==1:
+                 self.widget2.move(20,100) 
+                 self.widget2.resize(self.frameGeometry().width()-20,self.frameGeometry().height()-100)
+             elif sayi==2:
+                if self.pm10durum==False:
+                    self.widget2.move(20,100)
+                self.widget2.resize((self.frameGeometry().width()/2)-20,self.frameGeometry().height()-100)
+        if self.so2durum:
+             if sayi==1:
+                 self.widget3.move(20,100) 
+                 self.widget3.resize(self.frameGeometry().width()-20,self.frameGeometry().height()-100)
+             elif sayi==2:
+                 if self.o3durum:
+                     self.widget3.move(20,100)
+                 else:
+                     self.widget3.move((self.frameGeometry().width()/2)+20,100)
+                 self.widget3.resize((self.frameGeometry().width()/2)-20,self.frameGeometry().height()-100)
+        if self.o3durum:
+             if sayi==1:
+                 self.widget4.move(20,100) 
+                 self.widget4.resize(self.frameGeometry().width()-20,self.frameGeometry().height()-100)
+             elif sayi==2:
+                 self.widget4.move(self.frameGeometry().width()/2+20,100) 
+                 self.widget4.resize((self.frameGeometry().width()/2)-20,self.frameGeometry().height()-100)
 
-y=gunler[["NO2"]].iloc[::-1]
-x= range(0,len(gunler))
-plt.subplot(222),
-plt.plot(x,y,"b"),
-plt.ylabel("NO2"),
-plt.title("Günlere göre ortalama NO2 değerleri")
+    def cizim(self):
+         d0 = date( self.tarihbaslangic.date().year(),  self.tarihbaslangic.date().month(), self.tarihbaslangic.date().day())
+         d1 = date( self.tarihbitis.date().year(),  self.tarihbitis.date().month(), self.tarihbitis.date().day())
+         self.gunfarki=(d1-d0).days
+         self.gunBaslangic=(d0-date(self.ilkYil, self.ilkAy, self.ilkGun)).days
+         self.pm10durum=False
+         self.no2durum=False
+         self.so2durum=False
+         self.o3durum=False
+         self.widget1.canvas.axes.clear()
+         self.widget2.canvas.axes.clear()
+         self.widget3.canvas.axes.clear()
+         self.widget4.canvas.axes.clear()
+         self.widget1.setVisible(False)
+         self.widget2.setVisible(False)
+         self.widget3.setVisible(False)
+         self.widget4.setVisible(False)
+         self.sayi=0
+         if self.pm10.isChecked():
+             self.pm10durum=True
+             self.widget1.setVisible(True)
+             self.sayi+=1
+             self.cizim1()
+         if self.no2.isChecked():
+             self.no2durum=True
+             self.widget2.setVisible(True)
+             self.sayi+=1
+             self.cizim2()
+         if self.so2.isChecked():
+             self.so2durum=True
+             self.widget3.setVisible(True)
+             self.sayi+=1
+             self.cizim3()
+         if self.o3.isChecked():
+             self.o3durum=True
+             self.widget4.setVisible(True)
+             self.sayi+=1
+             self.cizim4()
+         self.yenidenboyutlandir()
+         
+    def baslangicTarih(self,tarih):
+        self.tarihbitis.setMinimumDate(tarih.addDays(1))
+        
+    def kaydet(self):
+        self.lblcsv.setText(" "+self.csvyol.text())
+        self.h=pd.read_csv(self.csvyol.text())
+        self.hava=self.h.bfill().ffill()
+        #self.hava.to_csv('/hava2.csv', index=False)
+        self.sayi=0
+        self.pm10durum=False
+        self.no2durum=False
+        self.so2durum=False
+        self.o3durum=False
+        self.gunfarki=0
+        self.h=self.hava
+        self.gunBaslangic=0
+        ilkTarih=str(self.hava.sort_values(["Tarih"], ascending = True)["Tarih"].iloc[0:1].values).replace('[','').replace(']','').replace("'",'')
+        self.ilkYil=int(ilkTarih.split("/")[0])
+        self.ilkAy=int(ilkTarih.split("/")[1])
+        self.ilkGun=int(ilkTarih.split("/")[2])
+        sonTarih=str(self.hava.sort_values(["Tarih"], ascending = False)["Tarih"].iloc[0:1].values).replace('[','').replace(']','').replace("'",'')
+        self.sonYil=int(sonTarih.split("/")[0])
+        self.sonAy=int(sonTarih.split("/")[1])
+        self.sonGun=int(sonTarih.split("/")[2])
+        self.ilksonayarla()
+        
+    def maxmin(self,deger):
+        if(deger=="max"):
+            self.tarihbitis.setDateTime(QtCore.QDateTime.currentDateTime())
+        else:
+            self.tarihbaslangic.setDateTime(QtCore.QDateTime.currentDateTime().addYears(-1000))
+            
+    def ilksonayarla(self):
+        self.tarihbitis.setMaximumDate(QtCore.QDate(self.sonYil, self.sonAy, self.sonGun))
+        self.tarihbaslangic.setMaximumDate((QtCore.QDate(self.sonYil, self.sonAy, self.sonGun)).addDays(-1))
+        self.tarihbaslangic.setMinimumDate(QtCore.QDate(self.ilkYil, self.ilkAy, self.ilkGun))
+        self.maxmin("max")
+        self.maxmin("min")
 
-y=gunler[["SO2"]].iloc[::-1]
-x= range(0,len(gunler))
-plt.subplot(223),
-plt.plot(x,y,"y"),
-plt.xlabel("2018/10/29 - 2020/4/12"),
-plt.ylabel("SO2"),
-plt.title("Günlere göre ortalama SO2 değerleri")
-
-y=gunler[["O3"]].iloc[::-1]
-x= range(0,len(gunler))
-plt.subplot(224),
-plt.plot(x,y,"g"),
-plt.xlabel("2018/10/29 - 2020/4/12"),
-plt.ylabel("O3"),
-plt.title("Günlere göre ortalama O3 değerleri")
-plt.show()
-kalite=gunler.max(axis=1).apply(sinif)
-secilen=gunler.idxmax(axis=1)
-
-
-gunler["Secilen"]=secilen
-gunler["Kalite"]=kalite
-
-for x in enumerate(gunler.iloc[:,-1]):
-   
-    if x[0]%7==0 or x[0]%7==6:
-        tatilgunu.append(gunler.iloc[x[0],-2]+":"+x[1])
-    else:
-        isgunu.append(gunler.iloc[x[0],-2]+":"+x[1])
-
-
-tgunu={"PM10":0,"NO2":0,"SO2":0,"O3":0}
-igunu={"PM10":0,"NO2":0,"SO2":0,"O3":0}
-for i in isgunu:
-    veri=i.split(':')
-    if veri[0]=="PM10":
-        igunu["PM10"]+=1
-    elif veri[0]=="NO2":
-        igunu["NO2"]+=1
-    elif veri[0]=="SO2":
-        igunu["SO2"]+=1
-    else:
-        igunu["O3"]+=1
-
-                        
-for i in tatilgunu:
-    veri=i.split(':')
-    if veri[0]=="PM10":
-        tgunu["PM10"]+=1
-    elif veri[0]=="NO2":
-        tgunu["NO2"]+=1
-    elif veri[0]=="SO2":
-        tgunu["SO2"]+=1
-    else:
-        tgunu["O3"]+=1
-
-
-
-
-
-#---------------------------------------GiniSol, GiniSağ ve Gini J değerlerinin Hesaplanması-------------------------------------------
-
-GiniSol=GiniSag=Gini_J={"PM10":0,"NO2":0,"SO2":0,"O3":0}
-
-#PM10 için
-isGunuSayisi=isgunu.count("PM10:İYİ")
-tatilGunuSayisi=tatilgunu.count("PM10:İYİ")
-tsol=isGunuSayisi+tatilGunuSayisi
-tsag=igunu["PM10"]-isGunuSayisi+tgunu["PM10"]-tatilGunuSayisi
-if isGunuSayisi==0 and tatilGunuSayisi==0:
-    GiniSol["PM10"]=0
-else:
-    GiniSol["PM10"]=1-(((isGunuSayisi/tsol)**2)+(tatilGunuSayisi/tsol)**2)
-
-
-GiniSag["PM10"]=1-((((igunu["PM10"]-isGunuSayisi)/tsag)**2)+((tgunu["PM10"]-tatilGunuSayisi)/tsag)**2)
-Gini_J["PM10"]=1/(tsol+tsag)*((tsol*GiniSol["PM10"])+(tsag*GiniSag["PM10"]))
-
-
-#NO2 için
-isGunuSayisi=isgunu.count("NO2:İYİ")
-tatilGunuSayisi=tatilgunu.count("NO2:İYİ")
-tsol=isGunuSayisi+tatilGunuSayisi
-tsag=igunu["NO2"]-isGunuSayisi+tgunu["NO2"]-tatilGunuSayisi
-if isGunuSayisi==0 and tatilGunuSayisi==0:
-    GiniSol["NO2"]=0
-else:
-    GiniSol["NO2"]=1-(((isGunuSayisi/tsol)**2)+(tatilGunuSayisi/tsol)**2)
-
-
-GiniSag["NO2"]=1-((((igunu["NO2"]-isGunuSayisi)/tsag)**2)+((tgunu["NO2"]-tatilGunuSayisi)/tsag)**2)
-Gini_J["NO2"]=1/(tsol+tsag)*((tsol*GiniSol["NO2"])+(tsag*GiniSag["NO2"]))
-
+    def modelolustur(self):
+        
+        self.controlpanel.setVisible(False)
+        self.bekle.setVisible(True)
+       
+        yazi="Lütfen Bekleyin"
+        self.bekle.setText(yazi)
+        
+        gunler=self.h.sort_values(["Tarih"], ascending = True)
+        kalite=gunler.max(axis=1).apply(self.sinif)
+        secilen=gunler.drop(["Tarih"],axis=1).idxmax(axis=1)
+        
+        gunler["Secilen"]=secilen
+        gunler["Kalite"]=kalite
+        veri=[]
+        sayi=0
+        
+        for x in enumerate(gunler.iloc[:,-1]):
+         
+          haftasonumu= x[0]%7==0 or x[0]%7==6
           
-#SO2 için
-isGunuSayisi=isgunu.count("SO2:İYİ")
-tatilGunuSayisi=tatilgunu.count("SO2:İYİ")
-tsol=isGunuSayisi+tatilGunuSayisi
-tsag=igunu["SO2"]-isGunuSayisi+tgunu["SO2"]-tatilGunuSayisi
-if isGunuSayisi==0 and tatilGunuSayisi==0:
-    GiniSol["SO2"]=0
-else:
-    GiniSol["SO2"]=1-(((isGunuSayisi/tsol)**2)+(tatilGunuSayisi/tsol)**2)
+          if kalite[sayi]!=1 and haftasonumu==False:
+            artis=1
+          elif kalite[sayi]==1 and haftasonumu==False:
+            artis=2
+          elif kalite[sayi]!=1 and haftasonumu==True: 
+            artis=3
+          elif kalite[sayi]==1 and haftasonumu==True:
+            artis=4
 
+         
+          sayi+=1
+          veri.append(artis)
+        gunler["Durum"]=veri
+           
+        veri=gunler.drop(['Secilen'],axis=1)
+       
+        
+        
+        #sınıf sayısının belirlenmesi
+        label_encoder=LabelEncoder().fit(veri.Durum)
+        labels=label_encoder.transform(veri.Durum)
+        classes=list(label_encoder.classes_)
 
-GiniSag["SO2"]=1-((((igunu["SO2"]-isGunuSayisi)/tsag)**2)+((tgunu["SO2"]-tatilGunuSayisi)/tsag)**2)
-Gini_J["SO2"]=1/(tsol+tsag)*((tsol*GiniSol["SO2"])+(tsag*GiniSag["SO2"]))
+        
+        #girdi ve çıktı verilerinin hazırlanması
+        X=veri.drop(["Durum","Tarih"],axis=1)
+        y=labels
+        self.bekle.setText(yazi)
+       
+       
+        #eğitim ve doğrulama verilerinin hazırlanması
+        
+        
+        X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.2)#test yüzdesi %20
+        
+        
+        #çıktı değerlerinin kategorileştirilmesi
+        
+        
+       
+        y_train=to_categorical(y_train)
+        y_test=to_categorical(y_test)
+        
+        
+        #modelin oluşturulması
 
-
-          
-#O3 için
-isGunuSayisi=isgunu.count("O3:İYİ")
-tatilGunuSayisi=tatilgunu.count("O3:İYİ")
-
-tsol=isGunuSayisi+tatilGunuSayisi
-tsag=igunu["O3"]-isGunuSayisi+tgunu["O3"]-tatilGunuSayisi
-if isGunuSayisi==0 and tatilGunuSayisi==0:
-    GiniSol["O3"]=0
-else:
-    GiniSol["O3"]=1-(((isGunuSayisi/tsol)**2)+(tatilGunuSayisi/tsol)**2)
-
-
-GiniSag["O3"]=1-((((igunu["O3"]-isGunuSayisi)/tsag)**2)+((tgunu["O3"]-tatilGunuSayisi)/tsag)**2)
-Gini_J["O3"]=1/(tsol+tsag)*((tsol*GiniSol["O3"])+(tsag*GiniSag["O3"]))
-#----------------------------------------------------------------------------------
-
-
-
-print("İş Günleri")
-print(isgunu)
-print("\nTatil Günleri")
-print(tatilgunu)
-print("\nGini j:")
-print(Gini_J)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        model=Sequential()
+        model.add(Dense(4,input_dim=5,activation="relu"))
+        model.add(Dense(4,activation="relu"))
+        model.add(Dense(4,activation="softmax"))
+        model.summary()
+        
+        #modelin derlenmesi
+        model.compile(loss="categorical_crossentropy",optimizer="Adam",metrics=["accuracy"])
+        
+        
+        #modelin eğitilmesi
+        model.fit(X_train,y_train,validation_data=(X_test,y_test),epochs = int(self.epoksayisi.text()))
+        
+        yazi="\nortalama eğitim başarımı: "+str(np.mean(model.history.history["accuracy"]))+"\nortalama doğrulama başarımı: "+str(np.mean(model.history.history["val_accuracy"]))
+        self.bekle.setText(yazi)
+       
+        
+        
+        """
+        plt.plot(model.history.history["accuracy"])
+        plt.plot(model.history.history["val_accuracy"])
+        plt.title("Model Başarımları")
+        plt.ylabel("Başarım")
+        plt.xlabel("Epok sayısı")
+        plt.legend(["Eğitim","Test"],loc="upper left")
+        plt.show()"""
+        self.controlpanel.setVisible(True)
+        #self.bekle.setVisible(False)
+        
+class Ui_MainWindow(object):
+    def setupUi(self, MainWindow):
+        MainWindow.setObjectName("Veri Bilimi")
+        MainWindow.setWindowTitle("Veri Bilimi")
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        MainWindow.setCentralWidget(self.centralwidget)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        
+app = QtWidgets.QApplication(sys.argv)
+window = Window()
+window.show()
+app.exec_()
