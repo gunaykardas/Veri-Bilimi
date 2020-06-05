@@ -21,7 +21,7 @@ class Window(QtWidgets.QMainWindow):
         ui = Ui_MainWindow()
         ui.setupUi(self)
         self.resized.connect(self.islem)
-        loadUi("untitled.ui",self)
+        loadUi("form.ui",self)
         self.setWindowTitle("Veri Bilimi")
         self.widget1.setVisible(False)
         self.widget2.setVisible(False)
