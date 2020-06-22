@@ -34,6 +34,7 @@ class Window(QtWidgets.QMainWindow):
         self.btnmin.clicked.connect(lambda:self.maxmin("min"))
         self.btnolusturegit.clicked.connect(self.modelolustur)
         self.tarihbaslangic.dateChanged.connect(self.baslangicTarih)
+        self.bekle.setVisible(False)
         #self.addToolBar(NavigationToolbar(self.widget1.canvas, self)) 
 
     def resizeEvent(self, event):
@@ -43,7 +44,7 @@ class Window(QtWidgets.QMainWindow):
     def islem(self):
         self.yenidenboyutlandir()
 
-    def sinif(self,kalite):
+    def sinif(self,kalite):#HKI
         if kalite <= 100:
             return 1 #"İYİ"
         elif kalite >100:
@@ -230,7 +231,7 @@ class Window(QtWidgets.QMainWindow):
         gunler["Kalite"]=kalite
         veri=[]
         sayi=0
-        
+         
         for x in enumerate(gunler.iloc[:,-1]):
          
           haftasonumu= x[0]%7==0 or x[0]%7==6
